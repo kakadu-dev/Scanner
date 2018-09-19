@@ -24,29 +24,27 @@ import android.arch.lifecycle.OnLifecycleEvent
 import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
-import android.content.pm.PackageManager
 import android.graphics.Rect
 import android.support.annotation.RequiresPermission
-import android.support.v4.content.ContextCompat
 import android.util.AttributeSet
 import android.util.Log
 import android.view.SurfaceHolder
 import android.view.SurfaceView
 import android.view.View
 import android.widget.FrameLayout
-import bz.kakadu.scanner.OnBarcodeDetectorListener.Error.*
+import bz.kakadu.scanner.ScannerError.NOT_PERMISSION
+import bz.kakadu.scanner.ScannerError.NOT_START
+import bz.kakadu.scanner.ScannerUtils.hasCameraPermission
 import com.google.android.gms.vision.CameraSource
 import com.google.android.gms.vision.Detector
-import com.google.android.gms.vision.barcode.Barcode
-import com.google.android.gms.vision.barcode.BarcodeDetector
 import java.io.IOException
 
-class CameraSourcePreview @JvmOverloads constructor(
+abstract class CameraSourcePreview @JvmOverloads protected constructor(
     context: Context,
     attrs: AttributeSet? = null, defStyleAttr: Int = 0
 ) : FrameLayout(context, attrs, defStyleAttr),
     LifecycleObserver {
-    private val scannerPreviewBounds = Rect()
+    protected val scannerPreviewBounds = Rect()
     private val tempBounds = Rect()
     var scannerSize: Int = 0
         set(value) {
@@ -57,8 +55,8 @@ class CameraSourcePreview @JvmOverloads constructor(
     private var startRequested: Boolean = false
     private var surfaceAvailable: Boolean = false
     private var cameraSource: CameraSource? = null
-    private var onBarcodeDetectorListener: OnBarcodeDetectorListener? = null
-    private var layoutByPreview: Boolean = false
+    private lateinit var onScannerListener: OnScannerListener
+    protected var layoutByPreview: Boolean = false
     private val overlayDrawable: OverlayDrawable
     var overlayColor: Int = 0
         get() = overlayDrawable.color
@@ -66,23 +64,6 @@ class CameraSourcePreview @JvmOverloads constructor(
             field = value
             overlayDrawable.color = value
         }
-    /**
-     * Barcode.ALL_FORMATS,
-     * Barcode.CODE_128,
-     * Barcode.CODE_39,
-     * Barcode.CODE_93,
-     * Barcode.CODABAR,
-     * Barcode.DATA_MATRIX,
-     * Barcode.EAN_13,
-     * Barcode.EAN_8,
-     * Barcode.ITF,
-     * Barcode.QR_CODE,
-     * Barcode.UPC_A,
-     * Barcode.UPC_E,
-     * Barcode.PDF417,
-     * Barcode.AZTEC
-     */
-    var formatsInt = Barcode.ALL_FORMATS
 
 
     init {
@@ -144,72 +125,28 @@ class CameraSourcePreview @JvmOverloads constructor(
             }
         } catch (se: SecurityException) {
             Log.e(TAG, "Do not have permission to start the camera", se)
-            onBarcodeDetectorListener!!.onError(NOT_PERMISSION)
+            onScannerListener.onError(NOT_PERMISSION)
         } catch (e: IOException) {
             Log.e(TAG, "Could not start camera source.", e)
-            onBarcodeDetectorListener!!.onError(NOT_START)
+            onScannerListener.onError(NOT_START)
         }
 
     }
 
     private fun createCameraSource() {
         if (cameraSource != null) return
-        val context = context.applicationContext
-        val barcodeDetector = BarcodeDetector.Builder(context)
-            .setBarcodeFormats(formatsInt)
-            .build()
-        barcodeDetector.setProcessor(
-            object : Detector.Processor<Barcode> {
-                override fun release() {
-                }
+        val detector = createDetector()
 
-                override fun receiveDetections(detections: Detector.Detections<Barcode>) {
-                    //                        Log.i(TAG, "receiveDetections: " + detections.getDetectedItems() + "layoutByPreview=" + layoutByPreview);
-                    if (!hasWindowFocus()) return
-                    for (i in 0 until detections.detectedItems.size()) {
-
-                        val barcode =
-                            detections.detectedItems.get(detections.detectedItems.keyAt(i))
-                        val boundingBox = barcode.boundingBox
-                        //                            Log.v("rom", "boundingBox: " + boundingBox + ", scannerPreviewBounds=" + scannerPreviewBounds);
-                        if (scannerPreviewBounds.contains(boundingBox) || boundingBox.contains(
-                                scannerPreviewBounds.centerX(),
-                                scannerPreviewBounds.centerY()
-                            )
-                        ) {
-                            onBarcodeDetectorListener!!.onBarcodeDetected(null, barcode)
-                            return
-                        }
-                    }
-                    if (!layoutByPreview) {
-                        post { requestLayout() }
-                    }
-                }
-            })
-
-        if (!barcodeDetector.isOperational) {
-            // Note: The first time that an app using the barcode or face API is installed on a
-            // device, GMS will download a native libraries to the device in order to do detection.
-            // Usually this completes before the app is run for the first time.  But if that
-            // download has not yet completed, then the above call will not detect any barcodes
-            // and/or faces.
-            //
-            // isOperational() can be used to check if the required native libraries are currently
-            // available.  The detectors will automatically become operational once the library
-            // downloads complete on device.
-            Log.w(TAG, "Detector dependencies are not yet available.")
-            onBarcodeDetectorListener!!.onError(NOT_AVAILABLE)
-            return
-        }
 
         // Check for low storage.  If there is low storage, the native library will not be
         // downloaded, so detection will not become operational.
-        val lowstorageFilter = IntentFilter(Intent.ACTION_DEVICE_STORAGE_LOW)
-        val hasLowStorage = context.registerReceiver(null, lowstorageFilter) != null
+        val lowStorageFilter = IntentFilter(Intent.ACTION_DEVICE_STORAGE_LOW)
+        val hasLowStorage =
+            context.applicationContext.registerReceiver(null, lowStorageFilter) != null
 
         if (hasLowStorage) {
             Log.w(TAG, "Low storage error")
-            onBarcodeDetectorListener!!.onError(STORAGE_LOW)
+            onScannerListener.onError(ScannerError.STORAGE_LOW)
             return
         }
 
@@ -217,7 +154,7 @@ class CameraSourcePreview @JvmOverloads constructor(
         // to other detection examples to enable the barcode detector to detect small barcodes
         // at long distances.
         val size = 1920
-        val builder = CameraSource.Builder(context, barcodeDetector)
+        val builder = CameraSource.Builder(context, detector)
             .setFacing(CameraSource.CAMERA_FACING_BACK)
             .setAutoFocusEnabled(true)
             .setRequestedPreviewSize(size, size)
@@ -227,6 +164,7 @@ class CameraSourcePreview @JvmOverloads constructor(
 
     }
 
+    protected abstract fun createDetector(): Detector<*>?
 
     override fun onLayout(changed: Boolean, left: Int, top: Int, right: Int, bottom: Int) {
         if (cameraSource != null) {
@@ -275,12 +213,12 @@ class CameraSourcePreview @JvmOverloads constructor(
         start()
     }
 
-    fun setOnBarcodeDetectorListener(
-        onBarcodeDetectorListener: OnBarcodeDetectorListener,
+    protected fun setOnScannerListener(
+        onScannerListener: OnScannerListener,
         lifecycleOwner: LifecycleOwner? = null
     ) {
         lifecycleOwner?.lifecycle?.addObserver(this)
-        this.onBarcodeDetectorListener = onBarcodeDetectorListener
+        this.onScannerListener = onScannerListener
     }
 
     private inner class SurfaceCallback : SurfaceHolder.Callback {
@@ -290,10 +228,10 @@ class CameraSourcePreview @JvmOverloads constructor(
                 startIfReady()
             } catch (se: SecurityException) {
                 Log.e(TAG, "Do not have permission to start the camera", se)
-                onBarcodeDetectorListener!!.onError(NOT_PERMISSION)
+                onScannerListener.onError(NOT_PERMISSION)
             } catch (e: IOException) {
                 Log.e(TAG, "Could not start camera source.", e)
-                onBarcodeDetectorListener!!.onError(NOT_START)
+                onScannerListener.onError(NOT_START)
             }
 
         }
@@ -305,14 +243,11 @@ class CameraSourcePreview @JvmOverloads constructor(
         override fun surfaceChanged(holder: SurfaceHolder, format: Int, width: Int, height: Int) {}
     }
 
+    interface OnScannerListener {
+        fun onError(error: ScannerError)
+    }
+
     companion object {
-        private const val TAG = "CameraSourcePreview"
-        @JvmStatic
-        fun hasCameraPermission(context: Context): Boolean {
-            return ContextCompat.checkSelfPermission(
-                context,
-                Manifest.permission.CAMERA
-            ) == PackageManager.PERMISSION_GRANTED
-        }
+        internal const val TAG = "BarcodeDetectorPreview"
     }
 }

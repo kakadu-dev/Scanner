@@ -5,9 +5,10 @@ import android.support.v7.app.AlertDialog
 import android.support.v7.app.AppCompatActivity
 import android.view.View
 import android.widget.Toast
+import bz.kakadu.scanner.BarcodeDetectorPreview.OnBarcodeDetectorListener
+import bz.kakadu.scanner.BarcodeScannerFragment
 import bz.kakadu.scanner.IScanner
-import bz.kakadu.scanner.OnBarcodeDetectorListener
-import bz.kakadu.scanner.ScannerFragment
+import bz.kakadu.scanner.ScannerError
 import com.google.android.gms.vision.barcode.Barcode
 
 class MainActivity : AppCompatActivity(), OnBarcodeDetectorListener {
@@ -23,7 +24,7 @@ class MainActivity : AppCompatActivity(), OnBarcodeDetectorListener {
             .show()
     }
 
-    override fun onError(error: OnBarcodeDetectorListener.Error) {
+    override fun onError(error: ScannerError) {
         Toast.makeText(this, error.toString(), Toast.LENGTH_SHORT).show()
         supportFragmentManager.popBackStack()
     }
@@ -38,7 +39,7 @@ class MainActivity : AppCompatActivity(), OnBarcodeDetectorListener {
             .beginTransaction()
             .replace(
                 android.R.id.content,
-                ScannerFragment.instance(
+                BarcodeScannerFragment.instance(
                     overlayColor = 0xAAFF0000.toInt(),
                     formats = Barcode.EAN_13 or Barcode.QR_CODE
                 )

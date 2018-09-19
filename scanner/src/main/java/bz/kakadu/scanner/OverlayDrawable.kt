@@ -36,6 +36,7 @@ internal class OverlayDrawable(scannerSize: Int) : ColorDrawable(0xAA000000.toIn
 
     override fun draw(canvas: Canvas) {
         canvas.save()
+        @Suppress("DEPRECATION")
         canvas.clipRect(scannerBounds, Region.Op.DIFFERENCE)
         super.draw(canvas)
         canvas.restore()
