@@ -5,13 +5,21 @@ import android.support.v7.app.AlertDialog
 import android.support.v7.app.AppCompatActivity
 import android.view.View
 import android.widget.Toast
+import bz.kakadu.scanner.*
 import bz.kakadu.scanner.BarcodeDetectorPreview.OnBarcodeDetectorListener
-import bz.kakadu.scanner.BarcodeScannerFragment
-import bz.kakadu.scanner.IScanner
-import bz.kakadu.scanner.ScannerError
+import bz.kakadu.scanner.CardDetectorPreview.OnCardDetectorListener
 import com.google.android.gms.vision.barcode.Barcode
 
-class MainActivity : AppCompatActivity(), OnBarcodeDetectorListener {
+class MainActivity : AppCompatActivity(), OnBarcodeDetectorListener, OnCardDetectorListener {
+    override fun onCardDetected(scanner: IScanner?, cardInfo: CardDetectorPreview.CardInfo) {
+        AlertDialog.Builder(this)
+            .setTitle("Card")
+            .setMessage(cardInfo.toString())
+            .setPositiveButton(android.R.string.ok, null)
+            .setOnDismissListener { scanner?.continueScan() }
+            .show()
+    }
+
     override fun onBarcodeDetected(scanner: IScanner?, barcode: Barcode) {
         AlertDialog.Builder(this)
             .setTitle("Barcode")
@@ -32,6 +40,19 @@ class MainActivity : AppCompatActivity(), OnBarcodeDetectorListener {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
+    }
+
+    fun clickStartCardScanner(v: View) {
+        supportFragmentManager
+            .beginTransaction()
+            .replace(
+                android.R.id.content,
+                CardScannerFragment.instance(
+                    overlayColor = 0xAA000000.toInt()
+                )
+            )
+            .addToBackStack(null)
+            .commit()
     }
 
     fun clickStartScanner(v: View) {

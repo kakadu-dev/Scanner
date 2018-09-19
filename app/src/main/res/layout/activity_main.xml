@@ -11,5 +11,11 @@
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:onClick="clickStartScanner"
-        android:text="Start scanner" />
+        android:text="Start barcode scanner" />
+
+    <Button
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:onClick="clickStartCardScanner"
+        android:text="Start card scanner" />
 </LinearLayout>
