@@ -161,7 +161,6 @@ class CameraSourcePreview @JvmOverloads constructor(
         barcodeDetector.setProcessor(
             object : Detector.Processor<Barcode> {
                 override fun release() {
-
                 }
 
                 override fun receiveDetections(detections: Detector.Detections<Barcode>) {
@@ -217,7 +216,7 @@ class CameraSourcePreview @JvmOverloads constructor(
         // Creates and starts the camera.  Note that this uses a higher resolution in comparison
         // to other detection examples to enable the barcode detector to detect small barcodes
         // at long distances.
-        val size = Math.max(1920, 1920)
+        val size = 1920
         val builder = CameraSource.Builder(context, barcodeDetector)
             .setFacing(CameraSource.CAMERA_FACING_BACK)
             .setAutoFocusEnabled(true)
@@ -238,13 +237,13 @@ class CameraSourcePreview @JvmOverloads constructor(
                 val parentWidth = right - left
                 val parentHeight = bottom - top
                 val scale = Math.max(
-                    1f * parentHeight / width,
-                    1f * parentWidth / height
-                )//!!width for portail
+                    parentHeight.toFloat() / width,
+                    parentWidth.toFloat() / height
+                )
                 tempBounds.set(
                     0,
                     0,
-                    (height * scale).toInt(),
+                    (height * scale).toInt(),//width for portail
                     (width * scale).toInt()
                 )
                 val scannerPreviewSize = (scannerSize / scale).toInt()
@@ -257,7 +256,7 @@ class CameraSourcePreview @JvmOverloads constructor(
                     (left + (parentWidth - tempBounds.width()) / 2f).toInt(),
                     (top + (parentHeight - tempBounds.height()) / 2f).toInt()
                 )
-                surfaceView.requestLayout()
+                surfaceView.requestLayout()//?
                 surfaceView.layout(
                     tempBounds.left,
                     tempBounds.top,
