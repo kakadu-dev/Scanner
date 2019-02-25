@@ -31,7 +31,6 @@ Add the dependency in your `build.gradle` file:
                     android.R.id.content,
                     ScannerFragment.instance()
                 )
-                .addToBackStack(null)
                 .commit()
         }
 
