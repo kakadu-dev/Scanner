@@ -1,10 +1,10 @@
 package bz.kakadu.demoapp
 
 import android.os.Bundle
-import android.support.v7.app.AlertDialog
-import android.support.v7.app.AppCompatActivity
 import android.view.View
 import android.widget.Toast
+import androidx.appcompat.app.AlertDialog
+import androidx.appcompat.app.AppCompatActivity
 import bz.kakadu.scanner.IScanner
 import bz.kakadu.scanner.OnBarcodeDetectorListener
 import bz.kakadu.scanner.ScannerFragment

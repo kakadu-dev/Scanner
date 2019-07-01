@@ -1,13 +1,6 @@
-plugins {
-    id "com.github.dcendents.android-maven" version "2.1"
-}
 apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 
-def build = 4
-
-group = 'com.github.kakadu-dev'
-version = "1.0.$build"
 
 android {
     compileSdkVersion 28
@@ -15,8 +8,8 @@ android {
     defaultConfig {
         minSdkVersion 21
         targetSdkVersion 28
-        versionCode build
-        versionName version
+        versionCode 5
+        versionName "1.0.$versionCode-SNAPSHOT"
     }
 
     buildTypes {
@@ -33,32 +26,11 @@ android {
 
 dependencies {
     compileOnly "org.jetbrains.kotlin:kotlin-stdlib-jdk7:$kotlin_version"
-    compileOnly 'com.android.support:appcompat-v7:28.0.0'
-    api("com.google.android.gms:play-services-vision:17.0.2") {
-        exclude group: 'com.android.support'
-    }
+    api 'com.google.android.gms:play-services-vision:18.0.0'
 }
 
-// build a jar with source files
-task sourcesJar(type: Jar) {
-    from android.sourceSets.main.java.srcDirs
-    getArchiveClassifier().set('sources')
-}
 
-task javadoc(type: Javadoc) {
-    failOnError false
-    source = android.sourceSets.main.java.sourceFiles
-    classpath += project.files(android.getBootClasspath().join(File.pathSeparator))
-    classpath += configurations.compile
-}
-
-// build a jar with javadoc
-task javadocJar(type: Jar, dependsOn: javadoc) {
-    getArchiveClassifier().set('javadoc')
-    from javadoc.destinationDir
-}
-
-artifacts {
-    archives sourcesJar
-    archives javadocJar
-}
+// publish
+group = 'com.github.kakadu-dev'
+version = android.defaultConfig.versionName
+apply from: 'publish.gradle'

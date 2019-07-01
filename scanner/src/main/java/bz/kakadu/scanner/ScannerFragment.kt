@@ -1,14 +1,14 @@
 package bz.kakadu.scanner
 
 import android.Manifest
+import android.app.Activity
 import android.os.Bundle
 import android.os.Vibrator
-import android.support.annotation.ColorInt
-import android.support.v4.app.Fragment
-import android.support.v7.app.AppCompatActivity
 import android.view.LayoutInflater
 import android.view.View
 import android.view.ViewGroup
+import androidx.annotation.ColorInt
+import androidx.fragment.app.Fragment
 import bz.kakadu.scanner.OnBarcodeDetectorListener.Error
 import com.google.android.gms.vision.barcode.Barcode
 import java.util.concurrent.atomic.AtomicBoolean
@@ -77,7 +77,7 @@ class ScannerFragment : Fragment(), IScanner, OnBarcodeDetectorListener {
     override fun onBarcodeDetected(scanner: IScanner?, barcode: Barcode) {
         if (!isBarcodeDetected.getAndSet(true)) {
             val vibrator =
-                activity?.getSystemService(AppCompatActivity.VIBRATOR_SERVICE) as Vibrator?
+                activity?.getSystemService(Activity.VIBRATOR_SERVICE) as? Vibrator
             @Suppress("DEPRECATION")
             vibrator?.vibrate(300)
             activity?.runOnUiThread { barcodeDetectorListener?.onBarcodeDetected(this, barcode) }
